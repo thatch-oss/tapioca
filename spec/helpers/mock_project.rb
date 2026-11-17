@@ -60,6 +60,8 @@ module Tapioca
     end
 
     # Run `bundle install` in this project context (unbundled env)
+    # This test helper intentionally replaces Spoom's bundle command interface.
+    # rubocop:disable Sorbet/AllowIncompatibleOverride
     # @override(allow_incompatible: true)
     #: (?version: String?) -> Spoom::ExecResult
     def bundle_install!(version: nil)
@@ -68,23 +70,26 @@ module Tapioca
       opts = {}
       opts[:chdir] = absolute_path
       Bundler.with_unbundled_env do
+        # Install Bundler in a subprocess to avoid using the parent's cached gem paths.
         cmd =
           # prerelease versions are not always available on rubygems.org
           # so in this case, we install whichever is the latest
           if ::Gem::Version.new(bundler_version).prerelease?
-            ::Gem.install("bundler")
-            "bundle install"
+            "gem install bundler --no-document && bundle install"
           else
-            ::Gem.install("bundler", bundler_version)
-            "bundle _#{bundler_version}_ install"
+            "gem install bundler --version #{bundler_version} --no-document && " \
+              "bundle _#{bundler_version}_ install"
           end
 
         out, err, status = Open3.capture3(cmd, opts)
         Spoom::ExecResult.new(out: out, err: err, status: T.must(status.success?), exit_code: T.must(status.exitstatus))
       end
     end
+    # rubocop:enable Sorbet/AllowIncompatibleOverride
 
     # Run a `command` with `bundle exec` in this project context (unbundled env)
+    # This test helper accepts an environment hash instead of Spoom's options.
+    # rubocop:disable Sorbet/AllowIncompatibleOverride
     # @override(allow_incompatible: true)
     #: (String command, ?Hash[String, String] env) -> Spoom::ExecResult
     def bundle_exec(command, env = {})
@@ -95,10 +100,11 @@ module Tapioca
         Spoom::ExecResult.new(out: out, err: err, status: T.must(status.success?), exit_code: T.must(status.exitstatus))
       end
     end
+    # rubocop:enable Sorbet/AllowIncompatibleOverride
 
     # Run a Tapioca `command` with `bundle exec` in this project context (unbundled env)
-    #: (String command, ?enforce_typechecking: bool, ?exclude: Array[String]) -> Spoom::ExecResult
-    def tapioca(command, enforce_typechecking: true, exclude: tapioca_dependencies)
+    #: (String command, ?enforce_typechecking: bool, ?exclude: Array[String], ?env: Hash[String, String]) -> Spoom::ExecResult
+    def tapioca(command, enforce_typechecking: true, exclude: tapioca_dependencies, env: {})
       exec_command = ["tapioca", command]
       if command.start_with?("gem")
         exec_command << "--workers=1" unless command.match?("--workers")
@@ -109,15 +115,15 @@ module Tapioca
         exec_command << "--workers=1" unless command.match?("--workers")
       end
 
-      env = {}
-      env["ENFORCE_TYPECHECKING"] = if enforce_typechecking
+      merged_env = env.dup
+      merged_env["ENFORCE_TYPECHECKING"] = if enforce_typechecking
         "1"
       else
         warn("Ignoring typechecking errors in CLI test")
         "0"
       end
 
-      bundle_exec(exec_command.join(" "), env)
+      bundle_exec(exec_command.join(" "), merged_env)
     end
 
     private

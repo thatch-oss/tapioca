@@ -12,7 +12,9 @@ require "tapioca/runtime/dynamic_mixin_compiler"
 require "tapioca/sorbet_ext/backcompat_patches"
 require "tapioca/sorbet_ext/name_patch"
 require "tapioca/sorbet_ext/generic_name_patch"
+require "tapioca/sorbet_ext/generic_type_patch"
 require "tapioca/sorbet_ext/proc_bind_patch"
+require "tapioca/sorbet_ext/void_patch"
 require "tapioca/runtime/generic_type_registry"
 
 # The rewriter needs to be loaded very early so RBS comments within Tapioca itself are rewritten
@@ -26,7 +28,6 @@ Tapioca::Runtime::Trackers::Autoload.eager_load_all!
 require "tapioca/rbs/rewriter"
 # ^ Do not change the order of these requires
 
-require "benchmark"
 require "bundler"
 require "erb"
 require "etc"
@@ -41,7 +42,7 @@ require "shellwords"
 require "tempfile"
 require "thor"
 require "yaml"
-require "yard-sorbet"
+require "rubydex"
 require "prism"
 
 require "tapioca/helpers/gem_helper"
@@ -49,9 +50,10 @@ require "tapioca/helpers/git_attributes"
 require "tapioca/helpers/sorbet_helper"
 require "tapioca/helpers/rbi_helper"
 
-require "tapioca/helpers/source_uri"
+require "tapioca/helpers/package_url"
 require "tapioca/helpers/cli_helper"
 require "tapioca/helpers/config_helper"
+require "tapioca/helpers/file_helper"
 require "tapioca/helpers/rbi_files_helper"
 require "tapioca/helpers/env_helper"
 

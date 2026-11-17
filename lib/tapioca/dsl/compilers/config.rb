@@ -1,7 +1,7 @@
 # typed: strict
 # frozen_string_literal: true
 
-return unless defined?(Config) && defined?(Config::VERSION) && defined?(Config.const_name)
+return unless defined?(Config::VERSION) && defined?(Config.const_name)
 
 module Tapioca
   module Dsl
@@ -40,7 +40,7 @@ module Tapioca
       #   def github=(value); end
       # end
       # ```
-      #: [ConstantType = T::Module[top]]
+      #: [ConstantType = Module[top]]
       class Config < Compiler
         CONFIG_OPTIONS_SUFFIX = "ConfigOptions"
 
@@ -92,7 +92,7 @@ module Tapioca
 
         class << self
           # @override
-          #: -> Enumerable[T::Module[top]]
+          #: -> Enumerable[Module[top]]
           def gather_constants
             name = ::Config.const_name
             return [] unless Object.const_defined?(name)

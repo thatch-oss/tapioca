@@ -59,7 +59,7 @@ module Tapioca
 
         class << self
           # @override
-          #: -> Enumerable[T::Module[top]]
+          #: -> Enumerable[Module[top]]
           def gather_constants
             all_classes.grep(::ActiveModel::Attributes::ClassMethods)
           end
@@ -67,7 +67,7 @@ module Tapioca
 
         private
 
-        HANDLED_METHOD_TARGETS = ["attribute", "attribute="] #: Array[String]
+        HANDLED_METHOD_TARGETS = ["attribute", "attribute="].freeze #: Array[String]
 
         #: -> Array[[::String, ::String]]
         def attribute_methods_for_constant

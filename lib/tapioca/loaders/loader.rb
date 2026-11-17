@@ -11,22 +11,9 @@ module Tapioca
 
       # @abstract
       #: -> void
-      def load = raise NotImplementedError, "Abstract method called"
+      def load = super
 
       private
-
-      #: (Tapioca::Gemfile gemfile, String? initialize_file, String? require_file, bool halt_upon_load_error) -> void
-      def load_bundle(gemfile, initialize_file, require_file, halt_upon_load_error)
-        require_helper(initialize_file)
-
-        load_rails_application(halt_upon_load_error: halt_upon_load_error)
-
-        gemfile.require_bundle
-
-        require_helper(require_file)
-
-        load_rails_engines
-      end
 
       #: (?environment_load: bool, ?eager_load: bool, ?app_root: String, ?halt_upon_load_error: bool) -> void
       def load_rails_application(environment_load: false, eager_load: false, app_root: ".", halt_upon_load_error: true)

@@ -4,7 +4,7 @@
 module Tapioca
   module Dsl
     # @abstract
-    #: [ConstantType < T::Module[top]]
+    #: [ConstantType < Module[top]]
     class Compiler
       include RBIHelper
       include Runtime::Reflection
@@ -19,24 +19,24 @@ module Tapioca
       #: Hash[String, untyped]
       attr_reader :options
 
-      @@requested_constants = [] #: Array[T::Module[top]] # rubocop:disable Style/ClassVars
+      @@requested_constants = [] #: Array[Module[top]] # rubocop:disable Style/ClassVars
 
       class << self
-        #: (T::Module[top] constant) -> bool
+        #: (Module[top] constant) -> bool
         def handles?(constant)
           processable_constants.include?(constant)
         end
 
         # @abstract
-        #: -> Enumerable[T::Module[top]]
-        def gather_constants = raise NotImplementedError, "Abstract method called"
+        #: -> Enumerable[Module[top]]
+        def gather_constants = super
 
-        #: -> Set[T::Module[top]]
+        #: -> Set[Module[top]]
         def processable_constants
-          @processable_constants ||= T::Set[T::Module[T.anything]].new.compare_by_identity.merge(gather_constants) #: Set[T::Module[top]]?
+          @processable_constants ||= T::Set[T::Module[T.anything]].new.compare_by_identity.merge(gather_constants) #: Set[Module[top]]?
         end
 
-        #: (Array[T::Module[top]] constants) -> void
+        #: (Array[Module[top]] constants) -> void
         def requested_constants=(constants)
           @@requested_constants = constants # rubocop:disable Style/ClassVars
         end
@@ -69,13 +69,25 @@ module Tapioca
           @all_classes ||= all_modules.grep(Class).freeze #: Enumerable[Class[top]]?
         end
 
-        #: -> Enumerable[T::Module[top]]
+        #: -> Enumerable[Module[top]]
         def all_modules
           @all_modules ||= if @@requested_constants.any?
             @@requested_constants.grep(Module)
           else
-            ObjectSpace.each_object(Module).to_a
-          end.freeze #: Enumerable[T::Module[top]]?
+            ObjectSpace.each_object(Module).reject { |mod| deprecated_constant_proxy?(mod) }.to_a
+          end.freeze #: Enumerable[Module[top]]?
+        end
+
+        # Rails 8.1+ wraps deprecated constants in DeprecatedConstantProxy, which
+        # undefines most instance methods and warns from method_missing. Inspecting
+        # those modules during DSL discovery (is_a?, singleton_class, etc.) emits
+        # deprecation warnings even though Tapioca is only enumerating ObjectSpace.
+        # class_of uses Kernel#class so we can recognize the proxy without warning.
+        #: (Module[top] mod) -> bool
+        def deprecated_constant_proxy?(mod)
+          proxy_class_name = name_of(class_of(mod))
+          proxy_class_name == "ActiveSupport::Deprecation::DeprecatedConstantProxy" ||
+            proxy_class_name == "ActiveSupport::DeprecatedConstantProxy"
         end
       end
 
@@ -100,7 +112,7 @@ module Tapioca
 
       # @abstract
       #: -> void
-      def decorate = raise NotImplementedError, "Abstract method called"
+      def decorate = super
 
       # NOTE: This should eventually accept an `Error` object or `Exception` rather than simply a `String`.
       #: (String error) -> void
@@ -124,10 +136,12 @@ module Tapioca
         signature.kwarg_types.each { |_, kwarg_type| params << kwarg_type.to_s }
 
         # rest parameter type
-        params << signature.rest_type.to_s if signature.has_rest
+        rest_type = signature.rest_type
+        params << rest_type.to_s if rest_type
 
         # keyrest parameter type
-        params << signature.keyrest_type.to_s if signature.has_keyrest
+        keyrest_type = signature.keyrest_type
+        params << keyrest_type.to_s if keyrest_type
 
         # special case `.void` in a proc
         unless signature.block_name.nil?
@@ -139,10 +153,13 @@ module Tapioca
 
       #: (RBI::Scope scope, (Method | UnboundMethod) method_def, ?class_method: bool) -> void
       def create_method_from_def(scope, method_def, class_method: false)
+        parameters = compile_method_parameters_to_rbi(method_def)
+        return_type = compile_method_return_type_to_rbi(method_def)
+
         scope.create_method(
           method_def.name.to_s,
-          parameters: compile_method_parameters_to_rbi(method_def),
-          return_type: compile_method_return_type_to_rbi(method_def),
+          parameters: parameters,
+          return_type: return_type,
           class_method: class_method,
         )
       end
@@ -158,25 +175,27 @@ module Tapioca
         parameters.each_with_index.map do |(type, name), index|
           fallback_arg_name = "_arg#{index}"
 
-          name = name ? name.to_s : fallback_arg_name
-          name = fallback_arg_name unless valid_parameter_name?(name)
+          sig_name = name ? name.to_s : fallback_arg_name
+          is_anonymous_parameter = anonymous_parameter_name?(type, sig_name)
+          sig_name = fallback_arg_name unless is_anonymous_parameter || valid_parameter_name?(sig_name)
+          param_name = is_anonymous_parameter ? nil : sig_name
           method_type = T.must(method_types[index])
 
           case type
           when :req
-            create_param(name, type: method_type)
+            create_param(sig_name, type: method_type)
           when :opt
-            create_opt_param(name, type: method_type, default: "T.unsafe(nil)")
+            create_opt_param(sig_name, type: method_type, default: "T.unsafe(nil)")
           when :rest
-            create_rest_param(name, type: method_type)
+            create_rest_param(param_name, type: method_type)
           when :keyreq
-            create_kw_param(name, type: method_type)
+            create_kw_param(sig_name, type: method_type)
           when :key
-            create_kw_opt_param(name, type: method_type, default: "T.unsafe(nil)")
+            create_kw_opt_param(sig_name, type: method_type, default: "T.unsafe(nil)")
           when :keyrest
-            create_kw_rest_param(name, type: method_type)
+            create_kw_rest_param(param_name, type: method_type)
           when :block
-            create_block_param(name, type: method_type)
+            create_block_param(param_name, type: method_type)
           else
             raise "Unknown type `#{type}`."
           end

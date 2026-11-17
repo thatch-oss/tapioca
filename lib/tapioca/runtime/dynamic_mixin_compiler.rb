@@ -6,7 +6,7 @@ module Tapioca
     class DynamicMixinCompiler
       include Runtime::Reflection
 
-      #: Array[T::Module[top]]
+      #: Array[Module[top]]
       attr_reader :dynamic_extends, :dynamic_includes
 
       #: Array[Symbol]
@@ -15,7 +15,7 @@ module Tapioca
       #: Array[Symbol]
       attr_reader :instance_attribute_readers, :instance_attribute_writers, :instance_attribute_predicates
 
-      #: (T::Module[top] constant) -> void
+      #: (Module[top] constant) -> void
       def initialize(constant)
         @constant = constant
         mixins_from_modules = {}.compare_by_identity
@@ -53,7 +53,7 @@ module Tapioca
                 mixins_from_modules[mod] = (after - before).reverse!
               end
             end
-          rescue Exception # rubocop:disable Lint/RescueException
+          rescue Exception
             # this is a best effort, bail if we can't perform this
           end
 
@@ -85,7 +85,6 @@ module Tapioca
             super(*attrs, **kwargs) if defined?(super)
           end
 
-          # rubocop:disable Style/MissingRespondToMissing
           T::Sig::WithoutRuntime.sig { params(symbol: Symbol, args: T.untyped).returns(T.untyped) }
           def method_missing(symbol, *args)
             # We need this here so that we can handle any random instance
@@ -109,12 +108,12 @@ module Tapioca
         # is the list of all dynamically extended modules because of that
         # constant. We grab that value by deleting the key for the original
         # constant.
-        @dynamic_extends = mixins_from_modules.delete(constant) || [] #: Array[T::Module[top]]
+        @dynamic_extends = mixins_from_modules.delete(constant) || [] #: Array[Module[top]]
 
         # Since we deleted the original constant from the list of keys, all
         # the keys that remain are the ones that are dynamically included modules
         # during the include of the original constant.
-        @dynamic_includes = mixins_from_modules.keys #: Array[T::Module[top]]
+        @dynamic_includes = mixins_from_modules.keys #: Array[Module[top]]
 
         @class_attribute_readers = class_attribute_readers #: Array[Symbol]
         @class_attribute_writers = class_attribute_writers #: Array[Symbol]
@@ -173,7 +172,7 @@ module Tapioca
         tree << RBI::Include.new("GeneratedInstanceMethods")
       end
 
-      #: (RBI::Tree tree) -> [Array[T::Module[top]], Array[T::Module[top]]]
+      #: (RBI::Tree tree) -> [Array[Module[top]], Array[Module[top]]]
       def compile_mixes_in_class_methods(tree)
         includes = dynamic_includes.filter_map do |mod|
           qname = qualified_name_of(mod)
@@ -208,7 +207,7 @@ module Tapioca
         [[], []] # silence errors
       end
 
-      #: (T::Module[top] mod, Array[T::Module[top]] dynamic_extends) -> bool
+      #: (Module[top] mod, Array[Module[top]] dynamic_extends) -> bool
       def module_included_by_another_dynamic_extend?(mod, dynamic_extends)
         dynamic_extends.any? do |dynamic_extend|
           mod != dynamic_extend && ancestors_of(dynamic_extend).include?(mod)

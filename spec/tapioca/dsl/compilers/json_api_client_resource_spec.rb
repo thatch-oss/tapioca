@@ -178,9 +178,9 @@ module Tapioca
               # We let the generation raise, the user should not define an association without a corresponding class.
               # The association will be unusable anyway.
 
-              assert_raises(NameError, /uninitialized constant Post::User/) do
-                rbi_for(:Post)
-              end
+              e = assert_raises(NameError) { rbi_for(:Post) }
+
+              assert_match(/uninitialized constant Post::User/, e.message)
             end
 
             it "generates associations" do
@@ -367,73 +367,6 @@ module Tapioca
                 RBI
 
                 assert_equal(expected, rbi_for(:Post))
-              end
-
-              it "prints a warning that #sorbet_type is deprecated" do
-                add_ruby_file("post.rb", <<~RUBY)
-                  class CustomType
-                    def self.sorbet_type
-                      "Integer"
-                    end
-                  end
-
-                  class Post < JsonApiClient::Resource
-                    property :comment_count, type: :custom_type
-                    property :tag_count, type: :custom_type, default: 0
-                  end
-                RUBY
-
-                expected = <<~RBI
-                  # typed: strong
-
-                  class Post
-                    include JsonApiClientResourceGeneratedMethods
-
-                    module JsonApiClientResourceGeneratedMethods
-                      sig { returns(T.nilable(Integer)) }
-                      def comment_count; end
-
-                      sig { params(comment_count: T.nilable(Integer)).returns(T.nilable(Integer)) }
-                      def comment_count=(comment_count); end
-
-                      sig { returns(Integer) }
-                      def tag_count; end
-
-                      sig { params(tag_count: Integer).returns(Integer) }
-                      def tag_count=(tag_count); end
-                    end
-                  end
-                RBI
-
-                assert_output(nil, /WARNING: `#sorbet_type` is deprecated./) do
-                  assert_equal(expected, rbi_for(:Post))
-                end
-              end
-
-              it "does not crash if the source location #sorbet_type is unknown" do
-                add_ruby_file("post.rb", <<~RUBY)
-                  class CustomType
-                    def self.sorbet_type
-                      "Integer"
-                    end
-
-                    def self.method(name)
-                      m = super
-                      # Fake the source location, as if this was defined in a C extension.
-                      def m.source_location
-                        nil
-                      end
-                      m
-                    end
-                  end
-
-                  class Post < JsonApiClient::Resource
-                    property :comment_count, type: :custom_type
-                    property :tag_count, type: :custom_type, default: 0
-                  end
-                RUBY
-
-                rbi_for(:Post) # Should not raise
               end
             end
           end

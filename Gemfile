@@ -7,9 +7,10 @@ gemspec
 CURRENT_RAILS_VERSION = "8.1"
 rails_version = ENV.fetch("RAILS_VERSION", CURRENT_RAILS_VERSION)
 
-gem "minitest", "< 6.0" # Rails 8.1.1 doesn't support minitest 6.0 which causes errors
+gem "minitest"
 gem "minitest-hooks"
 gem "minitest-reporters"
+gem "minitest-mock"
 gem "debug"
 gem "irb"
 gem "rubocop-shopify"
@@ -20,6 +21,7 @@ gem "ruby-lsp-rails", ">= 0.4"
 
 group :deployment, :development do
   gem "rake"
+  gem "yard"
 end
 
 group :development, :test do
@@ -28,6 +30,13 @@ group :development, :test do
   else
     rails_version = CURRENT_RAILS_VERSION if rails_version == "current"
     gem "rails", "~> #{rails_version}.0"
+
+    if Gem::Version.new(rails_version) < Gem::Version.new("8.1")
+      # JSON 3 rejects quirks_mode in older Rails; Rails 8.1 removed it.
+      gem "json", "< 3"
+    else
+      gem "json", "< 4"
+    end
   end
 
   gem "sqlite3"
@@ -42,6 +51,7 @@ group :development, :test do
   gem "activerecord-typedstore"
   gem "identity_cache"
   gem "cityhash" # identity_cache emits a warning if this is not present
+  gem "dalli" # identity_cache emits a warning if this is not present
   gem "activeresource"
   gem "google-protobuf"
   gem "graphql"
@@ -53,6 +63,7 @@ group :development, :test do
   gem "bcrypt"
   gem "xpath"
   gem "kredis"
+  gem "sorbet-static"
 end
 
 group :test do

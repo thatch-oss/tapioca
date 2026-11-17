@@ -26,13 +26,21 @@ module Tapioca
       # # test_case.rbi
       # # typed: true
       # class ActiveSupport::TestCase
-      #   sig { params(fixture_name: NilClass, other_fixtures: NilClass).returns(T::Array[Post]) }
-      #   sig { params(fixture_name: T.any(String, Symbol), other_fixtures: NilClass).returns(Post) }
-      #   sig { params(fixture_name: T.any(String, Symbol), other_fixtures: T.any(String, Symbol))
-      #           .returns(T::Array[Post]) }
+      #   include ActiveRecord::TestFixtures
+      #
+      #   sig { returns(T::Array[Post]) }                                                          #   No names: returns an Array of all fixtures
+      #   sig { params(fixture_name: T.any(String, Symbol)).returns(Post) }                        #   One name: returns the requested fixture
+      #   sig { params(fixture_name: T.any(String, Symbol), other_fixtures: T.any(String, Symbol)) # Many names: returns an Array of the requested fixtures
+      #   .returns(T::Array[Post]) }
       #   def posts(fixture_name = nil, *other_fixtures); end
       # end
       # ~~~
+      #
+      # The `include` is generated because Rails mixes `ActiveRecord::TestFixtures` into
+      # `ActiveSupport::TestCase` through the `:active_support_test_case` load hook in
+      # `rails/test_help.rb`. Since RBI generation does not load an app's test helper, this runtime
+      # include is not captured. Without it, Sorbet does not see the class methods the module
+      # contributes via `mixes_in_class_methods`, such as `fixtures`.
       #: [ConstantType = singleton(ActiveSupport::TestCase)]
       class ActiveRecordFixtures < Compiler
         MISSING = Object.new
@@ -47,9 +55,10 @@ module Tapioca
           end
 
           method_names.select! { |name| fixture_class_mapping_from_fixture_files[name] != MISSING }
-          return if method_names.empty?
 
           root.create_path(constant) do |mod|
+            mod.create_include("ActiveRecord::TestFixtures")
+
             method_names.each do |name|
               create_fixture_method(mod, name.to_s)
             end
@@ -58,7 +67,7 @@ module Tapioca
 
         class << self
           # @override
-          #: -> Enumerable[T::Module[top]]
+          #: -> Enumerable[Module[top]]
           def gather_constants
             return [] unless defined?(Rails.application) && Rails.application
 
@@ -110,19 +119,16 @@ module Tapioca
             node.add_opt_param("fixture_name", "nil")
             node.add_rest_param("other_fixtures")
 
-            node.add_sig do |sig|
-              sig.add_param("fixture_name", "NilClass")
-              sig.add_param("other_fixtures", "NilClass")
+            node.add_sig do |sig| # No-parameter overload: returns an Array of all fixtures
               sig.return_type = "T::Array[#{return_type}]"
             end
 
-            node.add_sig do |sig|
+            node.add_sig do |sig| # One parameter overload: returns the requested fixture
               sig.add_param("fixture_name", "T.any(String, Symbol)")
-              sig.add_param("other_fixtures", "NilClass")
               sig.return_type = return_type
             end
 
-            node.add_sig do |sig|
+            node.add_sig do |sig| # Multi-parameter overload: returns an Array of the requested fixtures
               sig.add_param("fixture_name", "T.any(String, Symbol)")
               sig.add_param("other_fixtures", "T.any(String, Symbol)")
               sig.return_type = "T::Array[#{return_type}]"

@@ -46,7 +46,7 @@ module Tapioca
         # @override
         #: -> void
         def decorate
-          return unless constant.instance_methods.include?(:perform)
+          return unless constant.method_defined?(:perform)
 
           root.create_path(constant) do |worker|
             method_def = constant.instance_method(:perform)
@@ -83,7 +83,7 @@ module Tapioca
 
         class << self
           # @override
-          #: -> Enumerable[T::Module[top]]
+          #: -> Enumerable[Module[top]]
           def gather_constants
             all_classes.select { |c| Sidekiq::Worker > c }
           end

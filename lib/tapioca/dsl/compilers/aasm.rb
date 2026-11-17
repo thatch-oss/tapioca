@@ -10,18 +10,20 @@ module Tapioca
       # This gem dynamically defines constants and methods at runtime. For
       # example, given a class:
       #
-      #   class MyClass
-      #     include AASM
+      # ~~~rb
+      # class MyClass
+      #   include AASM
       #
-      #     aasm do
-      #       state :sleeping, initial: true
-      #       state :running, :cleaning
+      #   aasm do
+      #     state :sleeping, initial: true
+      #     state :running, :cleaning
       #
-      #       event :run do
-      #         transitions from: :sleeping, to: :running
-      #       end
+      #     event :run do
+      #       transitions from: :sleeping, to: :running
       #     end
       #   end
+      # end
+      # ~~~
       #
       # This will result in the following constants being defined:
       #
@@ -90,15 +92,23 @@ module Tapioca
               end
 
               # Create all of the methods for each event
-              parameters = [create_rest_param("opts", type: "T.untyped")]
-              state_machine.events.each do |event|
-                model.create_method(event.name.to_s, parameters: parameters)
-                model.create_method("#{event.name}!", parameters: parameters)
-                model.create_method("#{event.name}_without_validation!", parameters: parameters)
-                model.create_method("may_#{event.name}?", return_type: "T::Boolean")
+              parameters = [
+                create_rest_param("opts", type: "T.untyped"),
+                create_block_param("block", type: "T.nilable(T.proc.void)"),
+              ]
+              aasm_6_or_newer = ::Gem::Requirement.new(">= 6").satisfied_by?(::Gem::Version.new(::AASM::VERSION))
 
-                # For events, if there's a namespace the default methods are created in addition to
-                # namespaced ones.
+              state_machine.events.each do |event|
+                # As of aasm 6.0 a namespaced state machine defines only the
+                # namespaced event methods (e.g. `run_foo!`) and not the plain
+                # methods (`run!`) as aliases.
+                unless namespace && aasm_6_or_newer
+                  model.create_method(event.name.to_s, parameters: parameters)
+                  model.create_method("#{event.name}!", parameters: parameters)
+                  model.create_method("#{event.name}_without_validation!", parameters: parameters)
+                  model.create_method("may_#{event.name}?", return_type: "T::Boolean")
+                end
+
                 next unless namespace
 
                 name = "#{event.name}_#{namespace}"
@@ -107,9 +117,9 @@ module Tapioca
                 model.create_method("#{name}!", parameters: parameters)
                 model.create_method("may_#{name}?", return_type: "T::Boolean")
 
-                # There's no namespaced method created for `_without_validation`, so skip
-                # defining a method for:
-                #   "#{name}_without_validation!"
+                # aasm < 6 does not define a namespaced `_without_validation!`
+                # method.
+                model.create_method("#{name}_without_validation!", parameters: parameters) if aasm_6_or_newer
               end
             end
 
@@ -199,9 +209,9 @@ module Tapioca
 
         class << self
           # @override
-          #: -> Enumerable[T::Module[top]]
+          #: -> Enumerable[Module[top]]
           def gather_constants
-            T.cast(ObjectSpace.each_object(::AASM::ClassMethods), T::Enumerable[T::Module[T.anything]])
+            all_classes.grep(::AASM::ClassMethods)
           end
         end
       end

@@ -48,11 +48,20 @@ module Tapioca
           return
         end
 
+        candidate_index_ids = shim_and_todo_index_ids(
+          @shim_rbi_dir,
+          @todo_rbi_file,
+          number_of_workers: @number_of_workers,
+        )
+
         payload_path = nil #: String?
 
         if @payload
           Dir.mktmpdir do |dir|
             payload_path = dir
+
+            # No need for `--stop-after`, because Sorbet exits immediately after dumping the payload.
+            # https://github.com/sorbet/sorbet/blob/41ae325/main/realmain.cc#L522-L552
             result = sorbet("--no-config --print=payload-sources:#{payload_path}")
 
             unless result.status
@@ -62,15 +71,39 @@ module Tapioca
               ERROR
             end
 
-            index_rbis(index, "payload", payload_path, number_of_workers: @number_of_workers)
+            index_filtered_rbis(
+              index,
+              "payload",
+              payload_path,
+              index_ids: candidate_index_ids,
+              number_of_workers: @number_of_workers,
+            )
           end
         end
 
         index_rbi(index, "todo", @todo_rbi_file)
         index_rbis(index, "shim", @shim_rbi_dir, number_of_workers: @number_of_workers)
-        index_rbis(index, "gem", @gem_rbi_dir, number_of_workers: @number_of_workers)
-        index_rbis(index, "dsl", @dsl_rbi_dir, number_of_workers: @number_of_workers)
-        index_rbis(index, "annotation", @annotations_rbi_dir, number_of_workers: @number_of_workers)
+        index_filtered_rbis(
+          index,
+          "gem",
+          @gem_rbi_dir,
+          index_ids: candidate_index_ids,
+          number_of_workers: @number_of_workers,
+        )
+        index_filtered_rbis(
+          index,
+          "dsl",
+          @dsl_rbi_dir,
+          index_ids: candidate_index_ids,
+          number_of_workers: @number_of_workers,
+        )
+        index_filtered_rbis(
+          index,
+          "annotation",
+          @annotations_rbi_dir,
+          index_ids: candidate_index_ids,
+          number_of_workers: @number_of_workers,
+        )
 
         duplicates = duplicated_nodes_from_index(index, shim_rbi_dir: @shim_rbi_dir, todo_rbi_file: @todo_rbi_file)
 

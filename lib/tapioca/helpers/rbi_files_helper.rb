@@ -5,40 +5,35 @@ module Tapioca
   # @requires_ancestor: Thor::Shell
   # @requires_ancestor: SorbetHelper
   module RBIFilesHelper
-    #: (RBI::Index index, String kind, String file) -> void
-    def index_rbi(index, kind, file)
-      return unless File.exist?(file)
-
-      say("Loading #{kind} RBIs from #{file}... ")
-      time = Benchmark.realtime do
-        parse_and_index_files(index, [file], number_of_workers: 1)
+    class FilteredRBIIndex < RBI::Index
+      #: (Set[String] index_ids) -> void
+      def initialize(index_ids)
+        super()
+        @index_ids = index_ids
       end
-      say(" Done ", :green)
-      say("(#{time.round(2)}s)")
+
+      #: -> Hash[String, Array[RBI::Node]]
+      def entries
+        keys.to_h { |key| [key, self[key]] }
+      end
+
+      private
+
+      # @override
+      #: ((RBI::Indexable & RBI::Node) node) -> void
+      def index_node(node)
+        node.index_ids.each do |id|
+          self[id] << node if @index_ids.include?(id)
+        end
+      end
     end
-
-    #: (RBI::Index index, String kind, String dir, number_of_workers: Integer?) -> void
-    def index_rbis(index, kind, dir, number_of_workers:)
-      return unless Dir.exist?(dir) && !Dir.empty?(dir)
-
-      if kind == "payload"
-        say("Loading Sorbet payload... ")
-      else
-        say("Loading #{kind} RBIs from #{dir}... ")
-      end
-      time = Benchmark.realtime do
-        files = Dir.glob("#{dir}/**/*.rbi").sort
-        parse_and_index_files(index, files, number_of_workers: number_of_workers)
-      end
-      say(" Done ", :green)
-      say("(#{time.round(2)}s)")
-    end
+    private_constant :FilteredRBIIndex
 
     #: (RBI::Index index, shim_rbi_dir: String, todo_rbi_file: String) -> Hash[String, Array[RBI::Node]]
     def duplicated_nodes_from_index(index, shim_rbi_dir:, todo_rbi_file:)
       duplicates = {}
       say("Looking for duplicates... ")
-      time = Benchmark.realtime do
+      time = realtime do
         index.keys.each do |key|
           nodes = index[key]
           next unless shims_or_todos_have_duplicates?(nodes, shim_rbi_dir: shim_rbi_dir, todo_rbi_file: todo_rbi_file)
@@ -78,7 +73,7 @@ module Tapioca
       res = sorbet(
         "--no-config",
         "--error-url-base=#{error_url_base}",
-        "--stop-after namer",
+        "--stop-after resolver",
         dsl_dir,
         gem_dir,
       )
@@ -129,30 +124,120 @@ module Tapioca
         ERR
       end
 
-      if auto_strictness
-        redef_errors = errors.select { |error| error.code == 4010 }
-        update_gem_rbis_strictnesses(redef_errors, gem_dir)
-      end
+      handled_errors = apply_validation_fixes(errors, gem_dir: gem_dir, auto_strictness: auto_strictness)
 
       Kernel.raise Tapioca::Error, error_messages.join("\n") if parse_errors.any?
+
+      unhandled_errors = errors - handled_errors
+      unhandled_errors.reject! { |error| ignored_validation_error?(error, gem_dir: gem_dir, dsl_dir: dsl_dir) }
+
+      if unhandled_errors.empty?
+        say("  No errors found\n\n", [:green, :bold])
+      end
     end
 
     private
 
-    #: (RBI::Index index, Array[String] files, number_of_workers: Integer?) -> void
-    def parse_and_index_files(index, files, number_of_workers:)
+    #: (RBI::Index index, String kind, String file) -> void
+    def index_rbi(index, kind, file)
+      time = realtime do
+        parse_and_index_files(index, [file], number_of_workers: 1, index_ids: nil)
+      end
+      say("Loading #{kind} RBIs from #{file}... ")
+      say(" Done ", :green)
+      say("(#{time.round(2)}s)")
+    rescue Errno::ENOENT, Errno::ENOTDIR
+      nil
+    end
+
+    #: (RBI::Index index, String kind, String dir, number_of_workers: Integer?) -> void
+    def index_rbis(index, kind, dir, number_of_workers:)
+      index_rbis_with_filter(index, kind, dir, number_of_workers: number_of_workers, index_ids: nil)
+    end
+
+    #: (RBI::Index index, String kind, String dir, index_ids: Set[String], number_of_workers: Integer?) -> void
+    def index_filtered_rbis(index, kind, dir, index_ids:, number_of_workers:)
+      index_rbis_with_filter(index, kind, dir, number_of_workers:, index_ids:)
+    end
+
+    #: (RBI::Index index, String kind, String dir, number_of_workers: Integer?, index_ids: Set[String]?) -> void
+    def index_rbis_with_filter(index, kind, dir, number_of_workers:, index_ids:)
+      files = Dir.glob("#{dir}/**/*.rbi").sort
+      return if files.empty?
+
+      if kind == "payload"
+        say("Loading Sorbet payload... ")
+      else
+        say("Loading #{kind} RBIs from #{dir}... ")
+      end
+      time = realtime do
+        parse_and_index_files(index, files, number_of_workers: number_of_workers, index_ids: index_ids)
+      end
+      say(" Done ", :green)
+      say("(#{time.round(2)}s)")
+    end
+
+    #: (String shim_rbi_dir, String todo_rbi_file, number_of_workers: Integer?) -> Set[String]
+    def shim_and_todo_index_ids(shim_rbi_dir, todo_rbi_file, number_of_workers:)
+      files = [] #: Array[String]
+      files << todo_rbi_file if File.exist?(todo_rbi_file)
+      files.concat(Dir.glob("#{shim_rbi_dir}/**/*.rbi").sort) if Dir.exist?(shim_rbi_dir)
+
+      index = RBI::Index.new
+      parse_and_index_files(
+        index,
+        files,
+        number_of_workers: number_of_workers,
+        index_ids: nil,
+        report_parse_errors: false,
+      )
+      index.keys.to_set
+    end
+
+    #: (
+    #|   RBI::Index index,
+    #|   Array[String] files,
+    #|   number_of_workers: Integer?,
+    #|   index_ids: Set[String]?,
+    #|   ?report_parse_errors: bool
+    #| ) -> void
+    def parse_and_index_files(index, files, number_of_workers:, index_ids:, report_parse_errors: true)
       executor = Executor.new(files, number_of_workers: number_of_workers)
 
-      trees = executor.run_in_parallel do |file|
+      results = executor.run_in_parallel do |file|
         next if Spoom::Sorbet::Sigils.file_strictness(file) == "ignore"
 
-        RBI::Parser.parse_file(file)
+        tree = RBI::Parser.parse_file(file)
+        next tree unless index_ids
+
+        filtered_index = FilteredRBIIndex.new(index_ids)
+        filtered_index.visit(tree)
+        entries = filtered_index.entries
+
+        entries.each_value do |nodes|
+          nodes.each do |node|
+            node.parent_tree = nil
+            # Scopes own their nested AST, unlike other indexed nodes. Matching descendants are indexed separately,
+            # so clear the subtree to avoid retaining unrelated nodes from the parsed file.
+            node.nodes.clear if node.is_a?(RBI::Scope)
+          end
+        end
+
+        entries
       rescue RBI::ParseError => e
-        say_error("\nWarning: #{e} (#{e.location})", :yellow)
+        say_error("\nWarning: #{e} (#{e.location})", :yellow) if report_parse_errors
         nil
       end.compact
 
-      index.visit_all(trees)
+      if index_ids
+        results.each do |entries|
+          T.cast(entries, T::Hash[String, T::Array[RBI::Node]]).each do |id, nodes|
+            index[id].concat(nodes)
+          end
+        end
+      else
+        index.visit_all(T.cast(results, T::Array[RBI::Node]))
+      end
     end
 
     # Do the list of `nodes` sharing the same name have duplicates?
@@ -258,6 +343,93 @@ module Tapioca
       )
     end
 
+    SUPPRESS_PAYLOAD_SUPERCLASS_REDEFINITION_FLAG =
+      "--suppress-payload-superclass-redefinition-for" #: String
+
+    #: (Array[Spoom::Sorbet::Errors::Error] errors) -> void
+    def update_sorbet_config_for_payload_superclass_redefinitions(errors)
+      errors
+        .filter_map { |error| payload_superclass_constant_from_error(error) }
+        .uniq
+        .each { |constant| add_payload_superclass_suppression_to_config(constant) }
+    end
+
+    #: (Spoom::Sorbet::Errors::Error error) -> String?
+    def payload_superclass_constant_from_error(error)
+      error.more.each do |line|
+        if line =~ /--suppress-payload-superclass-redefinition-for=([^\s`]+)/
+          return T.must(Regexp.last_match(1))
+        end
+      end
+
+      nil
+    end
+
+    #: (
+    #|   Array[Spoom::Sorbet::Errors::Error] errors,
+    #|   gem_dir: String,
+    #|   auto_strictness: bool,
+    #| ) -> Array[Spoom::Sorbet::Errors::Error]
+    def apply_validation_fixes(errors, gem_dir:, auto_strictness:)
+      handled_errors = [] #: Array[Spoom::Sorbet::Errors::Error]
+
+      if auto_strictness
+        redef_errors = errors.select { |error| error.code == 4010 }
+        update_gem_rbis_strictnesses(redef_errors, gem_dir) if redef_errors.any?
+        handled_errors.concat(redef_errors)
+      end
+
+      # Automatically fix payload superclass redefinition errors.
+      payload_superclass_errors = errors.select { |error| payload_superclass_error?(error) }
+      if payload_superclass_errors.any?
+        update_sorbet_config_for_payload_superclass_redefinitions(payload_superclass_errors)
+      end
+      handled_errors.concat(payload_superclass_errors)
+
+      handled_errors
+    end
+
+    #: (Spoom::Sorbet::Errors::Error error) -> bool
+    def payload_superclass_error?(error)
+      error.more.any? { |line| line.include?(SUPPRESS_PAYLOAD_SUPERCLASS_REDEFINITION_FLAG) }
+    end
+
+    #: (Spoom::Sorbet::Errors::Error error, gem_dir: String, dsl_dir: String) -> bool
+    def ignored_validation_error?(error, gem_dir:, dsl_dir:)
+      return false if Dir.exist?(gem_dir) && !Dir.glob("#{gem_dir}/**/*.rbi").empty?
+
+      [5002, 5067].include?(error.code) && T.must(error.file).start_with?(dsl_dir)
+    end
+
+    #: (String constant) -> void
+    def add_payload_superclass_suppression_to_config(constant)
+      flag = "#{SUPPRESS_PAYLOAD_SUPERCLASS_REDEFINITION_FLAG}=#{constant}"
+      config_path = Tapioca::SORBET_CONFIG_FILE
+      config = File.exist?(config_path) ? File.read(config_path) : ""
+      flag_already_present = config.lines(chomp: true).include?(flag)
+
+      if flag_already_present
+        say(
+          "\n  Payload superclass of `#{constant}` was redefined; `#{flag}` is already in sorbet/config\n",
+          [:yellow, :bold],
+        )
+        return
+      end
+
+      FileUtils.mkdir_p(File.dirname(config_path))
+      if config.empty?
+        File.write(config_path, "#{flag}\n")
+      else
+        suffix = config.end_with?("\n") ? "" : "\n"
+        File.write(config_path, "#{config}#{suffix}#{flag}\n")
+      end
+      say(
+        "\n  Added `#{flag}` to sorbet/config (payload superclass of `#{constant}` was redefined)",
+        [:yellow, :bold],
+      )
+      say("\n")
+    end
+
     #: (Array[Spoom::Sorbet::Errors::Error] errors, String gem_dir) -> void
     def update_gem_rbis_strictnesses(errors, gem_dir)
       files = []
@@ -288,6 +460,13 @@ module Tapioca
     #: (String path) -> String
     def gem_name_from_rbi_path(path)
       T.must(File.basename(path, ".rbi").split("@").first)
+    end
+
+    #: ?{ (?) -> untyped } -> (Integer | Float)
+    def realtime(&block)
+      start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      yield
+      Process.clock_gettime(Process::CLOCK_MONOTONIC) - start
     end
   end
 end

@@ -43,7 +43,7 @@ module Tapioca
         # @override
         #: -> void
         def decorate
-          return unless constant.instance_methods(false).include?(:perform)
+          return unless constant.method_defined?(:perform, false)
 
           root.create_path(constant) do |job|
             method = constant.instance_method(:perform)
@@ -84,7 +84,7 @@ module Tapioca
 
         class << self
           # @override
-          #: -> Enumerable[T::Module[top]]
+          #: -> Enumerable[Module[top]]
           def gather_constants
             descendants_of(::ActiveJob::Base)
           end

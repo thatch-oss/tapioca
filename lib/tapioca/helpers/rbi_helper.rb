@@ -37,7 +37,7 @@ module Tapioca
       create_typed_param(RBI::OptParam.new(name, default), type)
     end
 
-    #: (String name, type: String) -> RBI::TypedParam
+    #: (String? name, type: String) -> RBI::TypedParam
     def create_rest_param(name, type:)
       create_typed_param(RBI::RestParam.new(name), type)
     end
@@ -52,12 +52,12 @@ module Tapioca
       create_typed_param(RBI::KwOptParam.new(name, default), type)
     end
 
-    #: (String name, type: String) -> RBI::TypedParam
+    #: (String? name, type: String) -> RBI::TypedParam
     def create_kw_rest_param(name, type:)
       create_typed_param(RBI::KwRestParam.new(name), type)
     end
 
-    #: (String name, type: String) -> RBI::TypedParam
+    #: (String? name, type: String) -> RBI::TypedParam
     def create_block_param(name, type:)
       create_typed_param(RBI::BlockParam.new(name), type)
     end
@@ -94,6 +94,13 @@ module Tapioca
       end
     end
 
+    TYPE_PARAMETER_MATCHER = /T\.type_parameter\(:?([[:word:]]+)\)/
+
+    #: (Array[String] type_strings) -> Array[String]
+    def extract_type_parameters(type_strings)
+      type_strings.join(", ").scan(TYPE_PARAMETER_MATCHER).flatten.uniq
+    end
+
     #: (String name) -> bool
     def valid_method_name?(name)
       Prism.parse_success?("def self.#{name}(a); end")
@@ -102,6 +109,20 @@ module Tapioca
     #: (String name) -> bool
     def valid_parameter_name?(name)
       Prism.parse_success?("def sentinel_method_name(#{name}:); end")
+    end
+
+    #: (Symbol type, String name) -> bool
+    def anonymous_parameter_name?(type, name)
+      case type
+      when :rest
+        name == "*"
+      when :keyrest
+        name == "**"
+      when :block
+        name == "&"
+      else
+        false
+      end
     end
   end
 end

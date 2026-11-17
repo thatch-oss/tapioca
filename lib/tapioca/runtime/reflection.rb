@@ -3,19 +3,9 @@
 
 require "tapioca/runtime/source_location"
 
-# On Ruby 3.2 or newer, Class defines an attached_object method that returns the
-# attached class of a singleton class without iterating ObjectSpace. On older
-# versions of Ruby, we fall back to iterating ObjectSpace.
-if Class.method_defined?(:attached_object)
-  require "tapioca/runtime/attached_class_of_32"
-else
-  require "tapioca/runtime/attached_class_of_legacy"
-end
-
 module Tapioca
   module Runtime
     module Reflection
-      include AttachedClassOf
       extend self
 
       CLASS_METHOD = Kernel.instance_method(:class) #: UnboundMethod
@@ -30,7 +20,7 @@ module Tapioca
       PROTECTED_INSTANCE_METHODS_METHOD = Module.instance_method(:protected_instance_methods) #: UnboundMethod
       PRIVATE_INSTANCE_METHODS_METHOD = Module.instance_method(:private_instance_methods) #: UnboundMethod
       METHOD_METHOD = Kernel.instance_method(:method) #: UnboundMethod
-      UNDEFINED_CONSTANT = Module.new.freeze #: T::Module[top]
+      UNDEFINED_CONSTANT = Module.new.freeze #: Module[top]
 
       REQUIRED_FROM_LABELS = ["<top (required)>", "<main>", "<compiled>"].freeze #: Array[String]
 
@@ -41,7 +31,7 @@ module Tapioca
       end
 
       # @without_runtime
-      #: (String symbol, ?inherit: bool, ?namespace: T::Module[top]) -> BasicObject
+      #: (String symbol, ?inherit: bool, ?namespace: Module[top]) -> BasicObject
       def constantize(symbol, inherit: false, namespace: Object)
         namespace.const_get(symbol, inherit)
       rescue NameError, LoadError, RuntimeError, ArgumentError, TypeError
@@ -53,23 +43,23 @@ module Tapioca
         CLASS_METHOD.bind_call(object)
       end
 
-      #: (T::Module[top] constant) -> Array[Symbol]
+      #: (Module[top] constant) -> Array[Symbol]
       def constants_of(constant)
         CONSTANTS_METHOD.bind_call(constant, false)
       end
 
-      #: (T::Module[top] constant) -> String?
+      #: (Module[top] constant) -> String?
       def name_of(constant)
         name = NAME_METHOD.bind_call(constant)
         name&.start_with?("#<") ? nil : name
       end
 
-      #: (T::Module[top] constant) -> Class[top]
+      #: (Module[top] constant) -> Class[top]
       def singleton_class_of(constant)
         SINGLETON_CLASS_METHOD.bind_call(constant)
       end
 
-      #: (T::Module[top] constant) -> Array[T::Module[top]]
+      #: (Module[top] constant) -> Array[Module[top]]
       def ancestors_of(constant)
         ANCESTORS_METHOD.bind_call(constant)
       end
@@ -77,6 +67,12 @@ module Tapioca
       #: (Class[top] constant) -> Class[top]?
       def superclass_of(constant)
         SUPERCLASS_METHOD.bind_call(constant)
+      end
+
+      #: (Class[top] singleton_class) -> Module[top]?
+      def attached_class_of(singleton_class)
+        result = singleton_class.attached_object
+        Module === result ? result : nil
       end
 
       #: (BasicObject object) -> Integer
@@ -89,22 +85,22 @@ module Tapioca
         EQUAL_METHOD.bind_call(object, other)
       end
 
-      #: (T::Module[top] constant) -> Array[Symbol]
+      #: (Module[top] constant) -> Array[Symbol]
       def public_instance_methods_of(constant)
         PUBLIC_INSTANCE_METHODS_METHOD.bind_call(constant)
       end
 
-      #: (T::Module[top] constant) -> Array[Symbol]
+      #: (Module[top] constant) -> Array[Symbol]
       def protected_instance_methods_of(constant)
         PROTECTED_INSTANCE_METHODS_METHOD.bind_call(constant)
       end
 
-      #: (T::Module[top] constant) -> Array[Symbol]
+      #: (Module[top] constant) -> Array[Symbol]
       def private_instance_methods_of(constant)
         PRIVATE_INSTANCE_METHODS_METHOD.bind_call(constant)
       end
 
-      #: (T::Module[top] constant) -> Array[T::Module[top]]
+      #: (Module[top] constant) -> Array[Module[top]]
       def inherited_ancestors_of(constant)
         if Class === constant
           ancestors_of(superclass_of(constant) || Object)
@@ -113,7 +109,7 @@ module Tapioca
         end
       end
 
-      #: (T::Module[top] constant) -> String?
+      #: (Module[top] constant) -> String?
       def qualified_name_of(constant)
         name = name_of(constant)
         return if name.nil?
@@ -129,7 +125,24 @@ module Tapioca
 
       #: ((UnboundMethod | Method) method) -> untyped
       def signature_of!(method)
-        T::Utils.signature_for_method(method)
+        signature = T::Utils.signature_for_method(method)
+        return signature if signature
+
+        # Walk the super method chain to evaluate pending signatures that may have been hidden by `prepend`.
+        # During that walk, Sorbet may register a signature on the requested wrapper, so check it again.
+        # See https://github.com/Shopify/tapioca/issues/2710 for details.
+        current_method = method.super_method #: (UnboundMethod | Method)?
+        while current_method
+          # force evaluation of the signature
+          _ = T::Utils.signature_for_method(current_method)
+
+          evaluated_signature = T::Utils.signature_for_method(method)
+          return evaluated_signature if evaluated_signature
+
+          current_method = current_method.super_method
+        end
+
+        nil
       rescue LoadError, StandardError
         Kernel.raise SignatureBlockError
       end
@@ -146,7 +159,7 @@ module Tapioca
         type.to_s
       end
 
-      #: (T::Module[top] constant, Symbol method) -> Method
+      #: (Module[top] constant, Symbol method) -> Method
       def method_of(constant, method)
         METHOD_METHOD.bind_call(constant, method)
       end
@@ -215,32 +228,39 @@ module Tapioca
         SourceLocation.from_loc([file, resolved_loc.lineno])
       end
 
-      #: (T::Module[top] constant) -> Set[String]
+      #: (Module[top] constant) -> Set[String]
       def file_candidates_for(constant)
-        relevant_methods_for(constant).filter_map do |method|
+        # Grab all source files for (relevant) methods defined on the constant
+        candidates = relevant_methods_for(constant).filter_map do |method|
           method.source_location&.first
         end.to_set
+
+        # Add the source file for the constant definition itself, if available.
+        source_location_candidate = const_source_location(name_of(constant).to_s)&.file
+        candidates.add(source_location_candidate) if source_location_candidate
+
+        candidates
       end
 
-      #: (T::Module[top] constant) -> untyped
+      #: (Module[top] constant) -> untyped
       def abstract_type_of(constant)
         T::Private::Abstract::Data.get(constant, :abstract_type) ||
           T::Private::Abstract::Data.get(singleton_class_of(constant), :abstract_type)
       end
 
-      #: (T::Module[top] constant) -> bool
+      #: (Module[top] constant) -> bool
       def final_module?(constant)
         T::Private::Final.final_module?(constant)
       end
 
-      #: (T::Module[top] constant) -> bool
+      #: (Module[top] constant) -> bool
       def sealed_module?(constant)
         T::Private::Sealed.sealed_module?(constant)
       end
 
       private
 
-      #: (T::Module[top] constant) -> Array[UnboundMethod]
+      #: (Module[top] constant) -> Array[UnboundMethod]
       def relevant_methods_for(constant)
         methods = methods_for(constant).select(&:source_location)
           .reject { |x| method_defined_by_forwardable_module?(x) }
@@ -256,7 +276,7 @@ module Tapioca
         end
       end
 
-      #: (T::Module[top] constant) -> Array[UnboundMethod]
+      #: (Module[top] constant) -> Array[UnboundMethod]
       def methods_for(constant)
         modules = [constant, singleton_class_of(constant)]
         method_list_methods = [
@@ -270,7 +290,7 @@ module Tapioca
         end
       end
 
-      #: (T::Module[top] parent, String name) -> T::Module[top]?
+      #: (Module[top] parent, String name) -> Module[top]?
       def child_module_for_parent_with_name(parent, name)
         return if parent.autoload?(name)
 

@@ -74,6 +74,7 @@ module Tapioca
         @include_loc = include_loc #: bool
         @include_core_classes = include_core_classes #: bool
         @include_exported_rbis = include_exported_rbis
+        @skipped_gems = [] #: Array[String]
         @halt_upon_load_error = halt_upon_load_error
       end
 

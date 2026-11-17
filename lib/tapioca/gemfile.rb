@@ -49,7 +49,20 @@ module Tapioca
       end
     end
 
+    #: (String path) -> bool
+    def excluded_gem_path?(path)
+      excluded_gem_specs.any? { |spec| spec.contains_path?(path) }
+    end
+
     private
+
+    #: -> Array[GemSpec]
+    def excluded_gem_specs
+      @excluded_gem_specs ||= @excluded_gems.filter_map do |name|
+        spec = ::Gem.loaded_specs[name]
+        GemSpec.new(spec) if spec
+      end #: Array[GemSpec]?
+    end
 
     #: File
     attr_reader(:gemfile, :lockfile)
@@ -175,22 +188,6 @@ module Tapioca
           files.any? { |file| file.to_s == to_realpath(path) }
         else
           path_in_dir?(to_realpath(path), full_gem_path) || has_parent_gemspec?(path)
-        end
-      end
-
-      #: -> void
-      def parse_yard_docs
-        files.each do |path|
-          YARD.parse(path.to_s, [], Logger::Severity::FATAL)
-        rescue RangeError
-          # In some circumstances, YARD will raise an error when parsing a file
-          # that is actually valid Ruby. We don't want tapioca to halt in these
-          # cases, so we'll rescue the error, pretend like there was no
-          # documentation, and move on.
-          #
-          # This can be removed when https://github.com/lsegal/yard/issues/1536
-          # is resolved and released.
-          []
         end
       end
 

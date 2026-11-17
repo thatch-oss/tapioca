@@ -101,7 +101,7 @@
 #
 # For all these reasons, consider not using OpenStruct at all.
 #
-# source://ostruct//lib/ostruct.rb#109
+# pkg:gem/ostruct#lib/ostruct.rb:109
 class OpenStruct
   # Creates a new OpenStruct object.  By default, the resulting OpenStruct
   # object will have no attributes.
@@ -116,9 +116,7 @@ class OpenStruct
   #
   #   data   # => #<OpenStruct country="Australia", capital="Canberra">
   #
-  # @return [OpenStruct] a new instance of OpenStruct
-  #
-  # source://ostruct//lib/ostruct.rb#134
+  # pkg:gem/ostruct#lib/ostruct.rb:134
   def initialize(hash = T.unsafe(nil)); end
 
   # Compares this object and +other+ for equality.  An OpenStruct is equal to
@@ -133,7 +131,7 @@ class OpenStruct
   #   first_pet == second_pet   # => true
   #   first_pet == third_pet    # => false
   #
-  # source://ostruct//lib/ostruct.rb#423
+  # pkg:gem/ostruct#lib/ostruct.rb:423
   def ==(other); end
 
   # :call-seq:
@@ -145,7 +143,7 @@ class OpenStruct
   #   person = OpenStruct.new("name" => "John Smith", "age" => 70)
   #   person[:age]   # => 70, same as person.age
   #
-  # source://ostruct//lib/ostruct.rb#303
+  # pkg:gem/ostruct#lib/ostruct.rb:303
   def [](name); end
 
   # :call-seq:
@@ -158,25 +156,25 @@ class OpenStruct
   #   person[:age] = 42   # equivalent to person.age = 42
   #   person.age          # => 42
   #
-  # source://ostruct//lib/ostruct.rb#318
+  # pkg:gem/ostruct#lib/ostruct.rb:318
   def []=(name, value); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def __id__!; end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def __send__!(*_arg0); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def abort!(*_args, **_kwargs, &_block); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def class!; end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def clone!(freeze: T.unsafe(nil)); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def define_singleton_method!(*_arg0); end
 
   # Removes the named field from the object and returns the value the field
@@ -200,10 +198,10 @@ class OpenStruct
   #
   #   person.delete_field('number') { 8675_309 } # => 8675309
   #
-  # source://ostruct//lib/ostruct.rb#371
+  # pkg:gem/ostruct#lib/ostruct.rb:371
   def delete_field(name, &block); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def delete_field!(name, &block); end
 
   # :call-seq:
@@ -221,16 +219,16 @@ class OpenStruct
   #   person.dig(:address, "zip") # => 12345
   #   person.dig(:business_address, "zip") # => nil
   #
-  # source://ostruct//lib/ostruct.rb#340
+  # pkg:gem/ostruct#lib/ostruct.rb:340
   def dig(name, *names); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def dig!(name, *names); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def display!(*_arg0); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def dup!; end
 
   # :call-seq:
@@ -244,245 +242,231 @@ class OpenStruct
   #   data = OpenStruct.new("country" => "Australia", :capital => "Canberra")
   #   data.each_pair.to_a   # => [[:country, "Australia"], [:capital, "Canberra"]]
   #
-  # source://ostruct//lib/ostruct.rb#211
+  # pkg:gem/ostruct#lib/ostruct.rb:211
   def each_pair; end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def each_pair!; end
 
   # Provides marshalling support for use by the YAML library.
   #
-  # source://ostruct//lib/ostruct.rb#446
+  # pkg:gem/ostruct#lib/ostruct.rb:446
   def encode_with(coder); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def encode_with!(coder); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def enum_for!(*_arg0); end
 
   # Compares this object and +other+ for equality.  An OpenStruct is eql? to
   # +other+ when +other+ is an OpenStruct and the two objects' Hash tables are
   # eql?.
   #
-  # @return [Boolean]
-  #
-  # source://ostruct//lib/ostruct.rb#433
+  # pkg:gem/ostruct#lib/ostruct.rb:433
   def eql?(other); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def exit!(*_args, **_kwargs, &_block); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def extend!(*_arg0); end
 
-  # source://ostruct//lib/ostruct.rb#269
+  # pkg:gem/ostruct#lib/ostruct.rb:269
   def freeze; end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def freeze!; end
-
-  # source://ostruct//lib/ostruct.rb#478
-  def gem!(dep, *reqs); end
 
   # Computes a hash code for this OpenStruct.
   #
-  # source://ostruct//lib/ostruct.rb#439
+  # pkg:gem/ostruct#lib/ostruct.rb:439
   def hash; end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def hash!; end
 
   # Provides marshalling support for use by the YAML library.
   #
-  # source://ostruct//lib/ostruct.rb#459
+  # pkg:gem/ostruct#lib/ostruct.rb:459
   def init_with(coder); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def init_with!(coder); end
 
   # Returns a string containing a detailed summary of the keys and values.
   #
-  # source://ostruct//lib/ostruct.rb#388
+  # pkg:gem/ostruct#lib/ostruct.rb:388
   def inspect; end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def inspect!; end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def instance_eval!(*_arg0); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def instance_exec!(*_arg0); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def instance_variable_get!(_arg0); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def instance_variable_set!(_arg0, _arg1); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def instance_variables!; end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def itself!; end
 
   # Provides marshalling support for use by the Marshal library.
   #
-  # source://ostruct//lib/ostruct.rb#220
+  # pkg:gem/ostruct#lib/ostruct.rb:220
   def marshal_dump; end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def marshal_dump!; end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def method!(_arg0); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def methods!(*_arg0); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def object_id!; end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def pretty_inspect!; end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def pretty_print!(q); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def pretty_print_cycle!(q); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def pretty_print_inspect!; end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def pretty_print_instance_variables!; end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def private_methods!(*_arg0); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def protected_methods!(*_arg0); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def public_method!(_arg0); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def public_methods!(*_arg0); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def public_send!(*_arg0); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def remove_instance_variable!(_arg0); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def send!(*_arg0); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def singleton_class!; end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def singleton_method!(_arg0); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def singleton_methods!(*_arg0); end
 
-  # source://ostruct//lib/ostruct.rb#406
+  # pkg:gem/ostruct#lib/ostruct.rb:406
   def table; end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def tap!; end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def then!; end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def to_enum!(*_arg0); end
 
-  # source://ostruct//lib/ostruct.rb#182
+  # RUBY_VERSION < 2.6 compatibility
+  #
+  # pkg:gem/ostruct#lib/ostruct.rb:182
   def to_h(&block); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def to_h!(&block); end
 
-  # source://ostruct//lib/ostruct.rb#478
-  def to_json!(*_arg0); end
+  # pkg:gem/ostruct#lib/ostruct.rb:478
+  def to_json!(state = T.unsafe(nil), *_arg1); end
 
-  # Returns a string containing a detailed summary of the keys and values.
-  #
-  # source://ostruct//lib/ostruct.rb#404
+  # pkg:gem/ostruct#lib/ostruct.rb:404
   def to_s; end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def to_s!; end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def to_yaml!(options = T.unsafe(nil)); end
 
-  # source://ostruct//lib/ostruct.rb#478
+  # pkg:gem/ostruct#lib/ostruct.rb:478
   def yield_self!; end
 
   protected
 
-  # source://ostruct//lib/ostruct.rb#407
+  # pkg:gem/ostruct#lib/ostruct.rb:407
   def table!; end
 
   private
 
-  # source://ostruct//lib/ostruct.rb#486
+  # pkg:gem/ostruct#lib/ostruct.rb:486
   def block_given!; end
 
-  # source://ostruct//lib/ostruct.rb#147
+  # Duplicates an OpenStruct object's Hash table.
+  #
+  # pkg:gem/ostruct#lib/ostruct.rb:147
   def initialize_clone(orig); end
 
-  # source://ostruct//lib/ostruct.rb#152
+  # pkg:gem/ostruct#lib/ostruct.rb:152
   def initialize_dup(orig); end
 
-  # source://ostruct//lib/ostruct.rb#251
+  # pkg:gem/ostruct#lib/ostruct.rb:251
   def is_method_protected!(name); end
 
-  #
   # Provides marshalling support for use by the Marshal library.
   #
-  # source://ostruct//lib/ostruct.rb#227
+  # pkg:gem/ostruct#lib/ostruct.rb:227
   def marshal_load(hash); end
 
-  # source://ostruct//lib/ostruct.rb#274
+  # pkg:gem/ostruct#lib/ostruct.rb:274
   def method_missing(mid, *args); end
 
   # Used internally to defined properties on the
   # OpenStruct. It does this by using the metaprogramming function
   # define_singleton_method for both the getter method and the setter method.
   #
-  # source://ostruct//lib/ostruct.rb#234
+  # pkg:gem/ostruct#lib/ostruct.rb:234
   def new_ostruct_member!(name); end
 
   # Other builtin private methods we use:
   #
-  # source://ostruct//lib/ostruct.rb#481
+  # pkg:gem/ostruct#lib/ostruct.rb:481
   def raise!(*_arg0); end
 
-  # :call-seq:
-  #   ostruct[name] = obj  -> obj
-  #
-  # Sets the value of an attribute.
-  #
-  #   require "ostruct"
-  #   person = OpenStruct.new("name" => "John Smith", "age" => 70)
-  #   person[:age] = 42   # equivalent to person.age = 42
-  #   person.age          # => 42
-  #
-  # source://ostruct//lib/ostruct.rb#323
+  # pkg:gem/ostruct#lib/ostruct.rb:323
   def set_ostruct_member_value!(name, value); end
 
-  # source://ostruct//lib/ostruct.rb#157
+  # pkg:gem/ostruct#lib/ostruct.rb:157
   def update_to_values!(hash); end
 end
 
-# source://ostruct//lib/ostruct.rb#112
+# pkg:gem/ostruct#lib/ostruct.rb:112
 OpenStruct::HAS_PERFORMANCE_WARNINGS = T.let(T.unsafe(nil), TrueClass)
 
-# source://ostruct//lib/ostruct.rb#110
+# pkg:gem/ostruct#lib/ostruct.rb:110
 OpenStruct::VERSION = T.let(T.unsafe(nil), String)

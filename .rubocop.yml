@@ -12,6 +12,7 @@ AllCops:
   SuggestExtensions: false
   Exclude:
   - "vendor/**/*"
+  - "lib/tapioca/helpers/package_url.rb"
   Include:
   - "sorbet/rbi/shims/**/*.rbi"
 
@@ -21,6 +22,9 @@ Layout/LeadingCommentSpace:
 Layout/LineLength:
   Max: 120
   AllowedPatterns: ['\A\s*#:']
+
+Lint/SelfAssignment:
+  AllowRBSInlineAnnotation: true
 
 Naming/InclusiveLanguage:
   Exclude:
